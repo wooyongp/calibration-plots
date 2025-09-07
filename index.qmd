@@ -19,9 +19,9 @@ execute:
 
 ## Introduction
 
-**Calibration plots**, aka reliability plots, display the empirical probability against the predicted probability. Ideally, the dotted points in these plots should lie on the 45-degree line; if so, we say that the model is well-calibrated. A well-crafted calibration plot helps us understand the performance of a model and compare it to other models.
+**Calibration plots**, aka reliability plots, display the empirical probability against the predicted probability. The dotted points in these plots represent these probabilities from the trained model, and ideally, they should lie on the 45-degree line; if so, we say that the model is well-calibrated. A well-crafted calibration plot helps us understand the performance of a model and compare it to other models.
 
-Let's begin with loading the necessary packages and setting the seed. This practice tutorial works with both R and Python.
+We will cover how to create calibration plots for different types of outcomes in this tutorial. Let's begin with loading the necessary packages and setting the seed. This practice tutorial works with both R and Python.
 
 > NB: This tutorial has scrollable code blocks. Please scroll all the way down to see full code.
 
