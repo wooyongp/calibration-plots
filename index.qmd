@@ -776,7 +776,7 @@ pred_probs_df = pd.DataFrame(pred_probs, columns=model.classes_)
 
 :::
 
-
+### Calibration Plots
 
 :::{.panel-tabset}
 
