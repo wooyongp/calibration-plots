@@ -33,7 +33,6 @@ We will cover how to create calibration plots for different types of outcomes in
 ```{r packages-r}
 #| warning: false
 #| message: false
-
 # load packages
 library(tibble)
 library(ggplot2)
@@ -67,6 +66,7 @@ from sklearn.linear_model import LogisticRegression
 import ipywidgets as widgets
 from IPython.display import display
 import patchworklib as pw
+
 # set seed
 np.random.seed(42)
 ```
@@ -492,20 +492,22 @@ Notice that as the number of bins increases, the confience intervals become wide
 
 For multinomial (multi-class) outcomes, we need to adapt the standard binary calibration approach. That is, we need to create a calibration plot for each class. We can do this in two approaches:
 
-### 1. One-vs-Rest Calibration Plots
+#### 1. One-vs-Rest Calibration Plots
   1. Create separate calibration plots for each class using a one-vs-rest strategy:
   2. For each class, treat it as the "positive" class and all others as "negative"
   3. Plot predicted probabilities for that class against observed proportions
   4. Repeat for all classes, resulting in k plots for k classes
 
 
-### 2. Class-wise Calibration Plots
+#### 2. Class-wise Calibration Plots
   1. Bin the predicted probabilities for each class
   2. For each bin, calculate the observed frequency of that class
   3. Plot the predicted probability (x-axis) vs. observed frequency (y-axis) for each class
   4. Use different colors/markers for different classes on the same plot
 
 In the following example, we will create the class-wise calibration plot. To do so, let us create a function and a toy dataset that plots a multinomial calibration plot.
+
+### Creating the Toy Dataset
 
 :::{.panel-tabset}
 
@@ -542,59 +544,7 @@ data <- tibble(
   true_prob2 = prob2,
   true_prob3 = prob3
 )
-  
 
-# Function for multinomial calibration plot
-plot_multinomial_calibration <- function(predicted_probs, actual_class, n_bins=10) {
-
-  predicted_probs <- as.data.frame(predicted_probs)
-  
-  classes <- colnames(predicted_probs)
-  plot_data <- data.frame()
-  
-  for (class_name in classes) {
-    # Extract probabilities for this class
-    probs <- as.numeric(predicted_probs[[class_name]])
-    
-    # Create bins
-    bins <- cut(probs, breaks=seq(0, 1, length.out=n_bins+1), include.lowest=TRUE)
-    
-    # Calculate observed proportions and standard errors
-    bin_summary <- aggregate(as.numeric(actual_class == class_name), by=list(bin=bins), FUN=mean)
-    bin_centers <- aggregate(probs, by=list(bin=bins), FUN=mean)
-    bin_counts <- aggregate(as.numeric(actual_class == class_name), by=list(bin=bins), FUN=length)
-    bin_sd <- aggregate(as.numeric(actual_class == class_name), by=list(bin=bins), FUN=sd)
-    
-    # Calculate standard error
-    bin_se <- bin_sd$x / sqrt(bin_counts$x)
-    
-    # Combine data
-    class_data <- data.frame(
-      class = class_name,
-      bin_center = bin_centers$x,
-      observed_prop = bin_summary$x,
-      count = bin_counts$x,
-      empirical_se = bin_se
-    )
-    plot_data <- rbind(plot_data, class_data)
-  }
-  
-  # Create plot with confidence intervals
-  ggplot(plot_data, aes(x=bin_center, y=observed_prop, color=class)) +
-    geom_abline(slope=1, intercept=0, linetype="dashed", color="red") +
-    geom_ribbon(aes(ymin = observed_prop - 1.96 * empirical_se, 
-                    ymax = observed_prop + 1.96 * empirical_se, 
-                    fill = class), alpha = 0.3) +
-    geom_point(aes(size = count)) +
-    geom_line() +
-    xlim(0, 1) + ylim(0, 1) +
-    labs(x="Predicted Probability", y="Observed Proportion", 
-         title="Calibration Plot for Multinomial Classes",
-         color = "Class", fill = "Class", size = "Sample Size") +
-    guides(fill = "none", size = "none") +
-    theme_minimal() +
-    theme(legend.position = "bottom")
-}
 ```
 
 #### Python
@@ -634,8 +584,77 @@ data = pd.DataFrame({
     'true_prob2': prob2,
     'true_prob3': prob3
 })
+```
+
+:::
 
 
+### Function for Multinomial Calibration Plot
+
+:::{.panel-tabset}
+
+#### R
+
+```{r function-for-multinomial-calibration-plot-r}
+# Function for multinomial calibration plot
+plot_multinomial_calibration <- function(predicted_probs, actual_class, n_bins=10) {
+
+  predicted_probs <- as.data.frame(predicted_probs)
+  
+  classes <- colnames(predicted_probs)
+  plot_data <- data.frame()
+  
+  for (class_name in classes) {
+    # Extract probabilities for this class
+    probs <- as.numeric(predicted_probs[[class_name]])
+    
+    # maximum/minimum probability
+    max_prob <- max(probs)
+    min_prob <- min(probs)
+
+    # Create bins
+    bins <- cut(probs, breaks=seq(min(probs), max(probs), length.out=n_bins+1), include.lowest=TRUE)
+    
+    # Calculate observed proportions and standard errors
+    bin_summary <- aggregate(as.numeric(actual_class == class_name), by=list(bin=bins), FUN=mean)
+    bin_centers <- aggregate(probs, by=list(bin=bins), FUN=mean)
+    bin_counts <- aggregate(as.numeric(actual_class == class_name), by=list(bin=bins), FUN=length)
+    bin_sd <- aggregate(as.numeric(actual_class == class_name), by=list(bin=bins), FUN=sd)
+    
+    # Calculate standard error
+    bin_se <- bin_sd$x / sqrt(bin_counts$x)
+    
+    # Combine data
+    class_data <- data.frame(
+      class = class_name,
+      bin_center = bin_centers$x,
+      observed_prop = bin_summary$x,
+      count = bin_counts$x,
+      empirical_se = bin_se
+    )
+    plot_data <- rbind(plot_data, class_data)
+  }
+  
+  # Create plot with confidence intervals
+  ggplot(plot_data, aes(x=bin_center, color=class, group=class)) +
+    geom_abline(slope=1, intercept=0, linetype="dashed", color="red") +
+    geom_ribbon(aes(ymin = observed_prop - 1.96 * empirical_se, 
+                    ymax = observed_prop + 1.96 * empirical_se, 
+                    fill = class), alpha = 0.3) +
+    geom_point(aes(y=observed_prop, size = count)) +
+    geom_line(aes(y=observed_prop)) +
+    labs(x="Predicted Probability", y="Observed Proportion", 
+         title="Calibration Plot for Multinomial Classes",
+         color = "Class", fill = "Class", size = "Sample Size") +
+    guides(fill = "none", size = "none") +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+}
+```
+
+#### Python
+
+```{python function-for-multinomial-calibration-plot-python}
 # Function for multinomial calibration plot with confidence intervals
 def plot_multinomial_calibration(y_true, y_pred_proba, class_names=None, n_bins=10):
     """
@@ -662,7 +681,11 @@ def plot_multinomial_calibration(y_true, y_pred_proba, class_names=None, n_bins=
         y_prob = y_pred_proba.iloc[:, i]
         
         # Create bins manually to calculate confidence intervals
-        bins = pd.cut(y_prob, bins=n_bins, labels=False, include_lowest=True)
+        # Use min and max of predicted probabilities instead of uniform [0,1] bins
+        min_prob = y_prob.min()
+        max_prob = y_prob.max()
+        bin_edges = np.linspace(min_prob, max_prob, n_bins + 1)
+        bins = pd.cut(y_prob, bins=bin_edges, labels=False, include_lowest=True)
         
         # Calculate bin statistics
         bin_stats = []
@@ -701,8 +724,6 @@ def plot_multinomial_calibration(y_true, y_pred_proba, class_names=None, n_bins=
     plt.xlabel('Predicted Probability')
     plt.ylabel('Observed Proportion')
     plt.title('Calibration Plot for Multinomial Classes')
-    plt.xlim(0, 1)
-    plt.ylim(0, 1)
     plt.legend(loc='best')
     plt.grid(True, alpha=0.3)
     plt.show()
@@ -710,7 +731,7 @@ def plot_multinomial_calibration(y_true, y_pred_proba, class_names=None, n_bins=
 
 :::
 
-
+### Training the Model
 
 We then train a multinomial logistic regression model on the first 700 observations with covariates $x_1$ and $x_2$.
 
