@@ -218,7 +218,7 @@ rf_bin_stats <- tibble(
     bin_center = tapply(plot_data$forest_pred, rf_bins, mean),
     empirical_prob = tapply(plot_data$actual, rf_bins, mean),
     count = as.numeric(table(rf_bins)),
-    empirical_se = tapply(plot_data$actual, rf_bins, sd)/count
+    empirical_se = tapply(plot_data$actual, rf_bins, sd)/sqrt(count)
   )
 
 # Calculate the statistics for the Naive Bayes model
@@ -226,7 +226,7 @@ nb_bin_stats <- tibble(
     bin_center = tapply(plot_data$nb_pred, nb_bins, mean),
     empirical_prob = tapply(plot_data$actual, nb_bins, mean),
     count = as.numeric(table(nb_bins)),
-    empirical_se = tapply(plot_data$actual, nb_bins, sd)/count
+    empirical_se = tapply(plot_data$actual, nb_bins, sd)/sqrt(count)
   )
 
 # Combine the statistics for the two models
@@ -380,7 +380,7 @@ for (n in n_bins) {
     bin_center = tapply(plot_data$forest_pred, rf_bins, mean),
     empirical_prob = tapply(plot_data$actual, rf_bins, mean),
     count = as.numeric(table(rf_bins)),
-    empirical_se = tapply(plot_data$actual, rf_bins, sd)/count
+    empirical_se = tapply(plot_data$actual, rf_bins, sd)/sqrt(count)
   )
 
   # Calculate the statistics for the Naive Bayes model
@@ -388,7 +388,7 @@ for (n in n_bins) {
     bin_center = tapply(plot_data$nb_pred, nb_bins, mean),
     empirical_prob = tapply(plot_data$actual, nb_bins, mean),
     count = as.numeric(table(nb_bins)),
-    empirical_se = tapply(plot_data$actual, nb_bins, sd)/count
+    empirical_se = tapply(plot_data$actual, nb_bins, sd)/sqrt(count)
   )
 
   # Combine the statistics for the two models
@@ -441,7 +441,7 @@ for i, n in enumerate(n_bins):
         'bin_center': plot_data['forest_pred'].groupby(rf_bins).mean(),
         'empirical_prob': plot_data['actual'].groupby(rf_bins).mean(),
         'count': rf_bins.value_counts().sort_index(),
-        'empirical_se': plot_data['actual'].groupby(rf_bins).std() / rf_bins.value_counts().sort_index()
+        'empirical_se': plot_data['actual'].groupby(rf_bins).std() / np.sqrt(rf_bins.value_counts().sort_index())
     })
 
     # Calculate the statistics for the Naive Bayes model
@@ -449,7 +449,7 @@ for i, n in enumerate(n_bins):
         'bin_center': plot_data['nb_pred'].groupby(nb_bins).mean(),
         'empirical_prob': plot_data['actual'].groupby(nb_bins).mean(),
         'count': nb_bins.value_counts().sort_index(),
-        'empirical_se': plot_data['actual'].groupby(nb_bins).std() / nb_bins.value_counts().sort_index()
+        'empirical_se': plot_data['actual'].groupby(nb_bins).std() / np.sqrt(nb_bins.value_counts().sort_index())
     })
 
     # Add perfect calibration line
