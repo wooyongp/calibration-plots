@@ -46,7 +46,6 @@ library(shiny)
 library(htmlwidgets)
 library(DT)
 library(kableExtra)
-library(patchwork)
 
 # set seed
 set.seed(42)
@@ -238,7 +237,7 @@ ggplot(bin_stats) +
   geom_abline(aes(slope = 1, intercept = 0, color = "Perfect Calibration"), linetype = "dashed") +
   geom_ribbon(aes(x = bin_center, y = empirical_prob, fill = model,
                     ymin = empirical_prob - 1.96 * empirical_se, 
-                    ymax = empirical_prob + 1.96 * empirical_se), alpha = 0.5) +
+                    ymax = empirical_prob + 1.96 * empirical_se), alpha = 0.2) +
   geom_point(aes(x=bin_center, y=empirical_prob, color = model)) +
   scale_color_manual(values = c("Perfect Calibration" = "red", "Random Forest" = "blue", "Naive Bayes" = "green")) +
   scale_fill_manual(values = c("Perfect Calibration" = "red", "Random Forest" = "blue", "Naive Bayes" = "green")) +
@@ -313,7 +312,7 @@ ax.scatter(rf_data['bin_center'], rf_data['empirical_prob'],
 ax.fill_between(rf_data['bin_center'], 
                 rf_data['empirical_prob'] - 1.96 * rf_data['empirical_se'],
                 rf_data['empirical_prob'] + 1.96 * rf_data['empirical_se'],
-                alpha=0.3, color='blue')
+                alpha=0.2, color='blue')
 
 # Plot Naive Bayes with ribbons
 nb_data = bin_stats[bin_stats['model'] == 'Naive Bayes']
@@ -322,7 +321,7 @@ ax.scatter(nb_data['bin_center'], nb_data['empirical_prob'],
 ax.fill_between(nb_data['bin_center'], 
                 nb_data['empirical_prob'] - 1.96 * nb_data['empirical_se'],
                 nb_data['empirical_prob'] + 1.96 * nb_data['empirical_se'],
-                alpha=0.3, color='green')
+                alpha=0.2, color='green')
 
 # Formatting
 ax.set_xlim(0, 1)
@@ -368,7 +367,10 @@ This results in wider confidence intervals for bins with fewer observations if t
 
 ```{r adjusting-bins-r}
 # Create calibration plots with different numbers of bins
-n_bins <- c(2, 5, 10, 20)
+n_bins <- c(5, 10, 20, 100)
+
+# Create a tibble for plotting the calibration plots
+bin_stats <- tibble::tibble(bin_center = double(), empirical_prob = double(), count = double(), empirical_se = double(), model = character())
 
 for (n in n_bins) {
   # Bin the predictions
@@ -392,29 +394,24 @@ for (n in n_bins) {
   )
 
   # Combine the statistics for the two models
-  bin_stats <-  mutate(rf_bin_stats, model = "Random Forest") |> 
-    bind_rows(mutate(nb_bin_stats, model = "Naive Bayes"))
-
-  # Create the calibration plot
-  p <- ggplot(bin_stats) +
-    geom_abline(aes(slope = 1, intercept = 0, color = "Perfect Calibration"), linetype = "dashed") +
-    geom_ribbon(aes(x = bin_center, y = empirical_prob, fill = model,
-                      ymin = empirical_prob - 1.96 * empirical_se, 
-                      ymax = empirical_prob + 1.96 * empirical_se), alpha = 0.5) +
-    geom_point(aes(x=bin_center, y=empirical_prob, color = model)) +
-    scale_color_manual(values = c("Perfect Calibration" = "red", "Random Forest" = "blue", "Naive Bayes" = "green")) +
-    scale_fill_manual(values = c("Perfect Calibration" = "red", "Random Forest" = "blue", "Naive Bayes" = "green")) +
-    labs(title = paste0("Calibration Plot with ", n, " bins"), x=NULL, y=NULL, color = NULL) + guides(fill = "none") +
-    theme_minimal() + theme(legend.position = "bottom")
-  
-  assign(paste0("calibration_plot_", n), p)
+  bin_stats <-  bin_stats |> 
+    bind_rows(mutate(rf_bin_stats, model = "Random Forest", n_bin = n)) |> 
+    bind_rows(mutate(nb_bin_stats, model = "Naive Bayes", n_bin = n))
 }
 
-# Combine the calibration plots
-calibration_plot <- calibration_plot_2 + calibration_plot_5 + calibration_plot_10 + calibration_plot_20
+# Create the calibration plot
+ggplot(bin_stats) +
+  geom_abline(aes(slope = 1, intercept = 0, color = "Perfect Calibration"), linetype = "dashed") +
+  geom_ribbon(aes(x = bin_center, y = empirical_prob, fill = model,
+                    ymin = empirical_prob - 1.96 * empirical_se, 
+                    ymax = empirical_prob + 1.96 * empirical_se), alpha = 0.3) +
+  geom_point(aes(x=bin_center, y=empirical_prob, color = model)) +
+  scale_color_manual(values = c("Perfect Calibration" = "red", "Random Forest" = "blue", "Naive Bayes" = "green")) +
+  scale_fill_manual(values = c("Perfect Calibration" = "red", "Random Forest" = "blue", "Naive Bayes" = "green")) +
+  labs(title = paste0("Calibration Plot with different bins"), x=NULL, y=NULL, color = NULL) + guides(fill = "none") +
+  theme_minimal() + theme(legend.position = "bottom") +
+  facet_wrap(~ n_bin, nrow = length(n_bins)%/%2, labeller = labeller(n_bin = function(x) paste0(x, " bins")))
 
-# Display the combined plot
-calibration_plot
 ```
 
 #### Python
@@ -424,7 +421,7 @@ calibration_plot
 #| fig-height: 8
 
 # Create calibration plots with different numbers of bins
-n_bins = [2, 5, 10, 20]
+n_bins = [2, 10, 20, 100]
 
 fig, axes = plt.subplots(2, 2, figsize=(15, 12))
 axes = axes.flatten()
@@ -486,7 +483,7 @@ plt.show()
 
 :::
 
-Notice that as the number of bins increases, the confience intervals become wider; however, this is not always the case. If the bins are chosen to be decreasing the standard deviation in each bucket, the confidence intervals will become narrower. Making a good calibration plot requires careful consideration of the number of bins and the method of choosing the bins.
+Notice that as the number of bins increases, the confience intervals become wider; however, this is not always the case. If the bins are chosen to decrease the standard deviation in each bucket enough, the confidence intervals will become narrower. Making a good calibration plot requires careful consideration of the number of bins and the method of choosing the bins.
 
 ## Multiple Classes
 
