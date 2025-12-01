@@ -1,0 +1,7 @@
+.Rproj.user/
+.Rhistory
+.DS_Store
+*.Rproj
+.venv/
+index_cache/
+index_files/
